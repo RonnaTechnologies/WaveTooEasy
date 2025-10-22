@@ -1,0 +1,5 @@
+{
+    "board": "artekit:stm32f401:wavetooeasy",
+    "sketch": "WaveTooEasy.ino",
+    "output": "./output"
+}
