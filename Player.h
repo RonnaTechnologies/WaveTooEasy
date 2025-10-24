@@ -3,15 +3,15 @@
 
 #include <Arduino.h>
 
-#define MAX_PLAYERS     10
+#define MAX_PLAYERS 10
 
 typedef enum
 {
-	playerStopped,
-	playerPlaying,
-	playerPaused,
-	playerPausing,
-	playerStopping,
+    playerStopped,
+    playerPlaying,
+    playerPaused,
+    playerPausing,
+    playerStopping,
 } playerStatus;
 
 class PlayersPool;
@@ -23,15 +23,13 @@ class Player
 public:
     bool play(const char* filename, PlayMode mode = PlayModeNormal)
     {
-        if (status == playerPausing ||
-            status == playerStopping)
+        if (status == playerPausing || status == playerStopping)
         {
             wav.stop();
             status = playerStopped;
         }
 
-        if (status == playerStopped ||
-            status == playerPaused)
+        if (status == playerStopped || status == playerPaused)
         {
             wav.setVolume(base_volume);
         }
@@ -56,7 +54,9 @@ public:
                 wav.setVolume(0);
 
             status = playerStopping;
-        } else {
+        }
+        else
+        {
             wav.stop();
             status = playerStopped;
         }
@@ -66,25 +66,20 @@ public:
     {
         switch (status)
         {
-            case playerStopping:
-            case playerStopped:
-            default:
-                return playerStopped;
+        case playerStopping:
+        case playerStopped:
+        default: return playerStopped;
 
-            case playerPlaying:
-                return playerPlaying;
+        case playerPlaying: return playerPlaying;
 
-            case playerPausing:
-            case playerPaused:
-                return playerPaused;
+        case playerPausing:
+        case playerPaused: return playerPaused;
         }
     }
 
     void pause(bool ramp_volume = false)
     {
-        if (status == playerPaused  ||
-            status == playerStopped ||
-            status == playerStopping)
+        if (status == playerPaused || status == playerStopped || status == playerStopping)
             return;
 
         if (ramp_volume)
@@ -92,19 +87,19 @@ public:
             if (status == playerPlaying)
             {
                 wav.setVolume(0);
-				status = playerPausing;
+                status = playerPausing;
             }
-        } else {
+        }
+        else
+        {
             wav.pause();
-			status = playerPaused;
+            status = playerPaused;
         }
     }
 
     void resume()
     {
-        if (status == playerStopping ||
-            status == playerStopped ||
-            status == playerPlaying)
+        if (status == playerStopping || status == playerStopped || status == playerPlaying)
             return;
 
         if (status == playerPausing)
@@ -127,13 +122,16 @@ public:
     }
 
 protected:
-    Player() : status(playerStopped), busy(false), base_volume(1.0f) {}
+    Player() : status(playerStopped), busy(false), base_volume(1.0f)
+    {
+    }
     void poll()
     {
         if (status == playerStopping && wav.getVolume() == 0)
         {
             wav.stop();
-        } else if (status == playerPausing && wav.getVolume() == 0)
+        }
+        else if (status == playerPausing && wav.getVolume() == 0)
         {
             wav.pause();
             status = playerPaused;
@@ -159,10 +157,12 @@ class PlayersPool
      *
      * In serial_mode and latched_mode, the list is accessed by an
      * index using the get() function.
-    */
+     */
 
 private:
-    PlayersPool() : initialized(false), synchronized(true) {}
+    PlayersPool() : initialized(false), synchronized(true)
+    {
+    }
     Player players[MAX_PLAYERS];
 
     bool initialized;
@@ -279,11 +279,11 @@ public:
 
     bool playing()
     {
-    	AudioSourceStatus status;
+        AudioSourceStatus status;
 
-    	for (uint8_t i = 0; i < MAX_PLAYERS; i++)
+        for (uint8_t i = 0; i < MAX_PLAYERS; i++)
         {
-    			status = players[i].wav.getStatus();
+            status = players[i].wav.getStatus();
             if (status == AudioSourcePlaying || status == AudioSourcePaused)
                 return true;
         }
@@ -291,7 +291,10 @@ public:
         return false;
     }
 
-    inline uint8_t getMaxPlayers() { return MAX_PLAYERS; }
+    inline uint8_t getMaxPlayers()
+    {
+        return MAX_PLAYERS;
+    }
 };
 
 #endif // __PLAYER_H__
