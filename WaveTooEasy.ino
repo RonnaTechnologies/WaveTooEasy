@@ -20,6 +20,7 @@
 
 ***************************************************************************/
 
+
 #include <Arduino.h>
 
 #include "Led.h"
@@ -28,11 +29,17 @@
 #undef min
 #undef max
 
+#include <array>
+#include <charconv>
 #include <cstdint>
+#include <cstdio>
+#include <string>
+#include <string_view>
 
 
 namespace
 {
+    constexpr auto wav_extension = std::string_view{ ".wav\0" };
 
     // Configuration
     const std::uint32_t sample_rate = 44'100;
@@ -48,31 +55,30 @@ namespace
     // Serial
     UARTClass* serial = nullptr;
 
+    void pollAudioActivityLED()
+    {
+        static bool playing = false;
+
+        if (disable_leds)
+        {
+            return;
+        }
+
+        if (Audio.isPlaying() && !playing)
+        {
+            playing = true;
+            led1.stopBlink();
+            led1.blink(250, 125);
+        }
+        else if (!Audio.isPlaying() && playing)
+        {
+            playing = false;
+            led1.stopBlink();
+            led1.blink(1'000, 500);
+        }
+    }
+
 } // namespace
-
-
-static void pollAudioActivityLED()
-{
-    static bool playing = false;
-
-    if (disable_leds)
-    {
-        return;
-    }
-
-    if (Audio.isPlaying() && !playing)
-    {
-        playing = true;
-        led1.stopBlink();
-        led1.blink(250, 125);
-    }
-    else if (!Audio.isPlaying() && playing)
-    {
-        playing = false;
-        led1.stopBlink();
-        led1.blink(1000, 500);
-    }
-}
 
 
 void setup()
@@ -86,12 +92,12 @@ void setup()
     players.initialize(false);
     serial = &Serial;
     serial->setTimeout(0);
-    serial->begin(115200, UARTClass::Mode_8N1);
+    serial->begin(115'200, UARTClass::Mode_8N1);
 
     if (!disable_leds)
     {
         led2.setOn();
-        led1.blink(1000, 500);
+        led1.blink(1'000, 500);
     }
 
     Audio.begin(sample_rate);
@@ -145,6 +151,8 @@ void loop()
 
         if (message == 0x99 && data_index == 3)
         {
+
+
             auto player = players.get(player_id);
             player_id = (player_id + 1) % MAX_PLAYERS;
             auto volume = static_cast<float>(velocity) / 127.F;
@@ -153,7 +161,17 @@ void loop()
             volume = std::min(volume, 1.0F);
 
             player->setVolume(volume);
-            player->play("6.wav\0");
+
+            std::array<char, 4U> note_str_buffer{};
+            std::to_chars(note_str_buffer.begin(), note_str_buffer.end(), int{ note });
+
+            const auto note_str = std::string_view{ note_str_buffer.data() };
+
+            std::string file_name;
+            file_name.reserve(note_str.size() + wav_extension.size());
+            file_name.append(note_str).append(wav_extension);
+
+            player->play(file_name.c_str());
         }
     }
 }
