@@ -2,23 +2,24 @@
  * Artekit Wavetooeasy
  * https://www.artekit.eu/products/devboards/wavetooeasy
  *
-   Written by Ivan Meleca
+ * Written by Ivan Meleca
  * Copyright (c) 2021 Artekit Labs
  * https://www.artekit.eu
-
-### WaveTooEasy.ino
-
-#   This program is free software; you can redistribute it and/or modify
-#   it under the terms of the GNU General Public License as published by
-#   the Free Software Foundation; either version 3 of the License, or
-#   (at your option) any later version.
-#
-#   This program is distributed in the hope that it will be useful,
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#   GNU General Public License for more details.
-
-***************************************************************************/
+ *
+ * Modified by Jeremy Oden
+ * Copyright (c) 2025 Ronna Technologies
+ * https://ronnatech.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ ***************************************************************************/
 
 
 #include <Arduino.h>
