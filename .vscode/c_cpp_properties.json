@@ -6,7 +6,7 @@
             "compilerPath": "/home/jeremy/Arduino/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++",
             "compilerArgs": [
                 "-w",
-                "-std=c++17",
+                "-std=c++20",
                 "-ffunction-sections",
                 "-fdata-sections",
                 "-nostdlib",
@@ -43,7 +43,7 @@
                 "/home/jeremy/.arduino15/packages/artekit/hardware/stm32f401/1.0.1/cores/wavetooeasy/Arduino.h"
             ],
             "cStandard": "c17",
-            "cppStandard": "c++17",
+            "cppStandard": "c++20",
             "defines": [
                 "printf=iprintf",
                 "F_CPU=84000000L",

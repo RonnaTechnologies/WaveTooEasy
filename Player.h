@@ -1,18 +1,23 @@
 #ifndef __PLAYER_H__
 #define __PLAYER_H__
 
-#include <Arduino.h>
 
-#define MAX_PLAYERS 10
+#include "WavPlayer.h"
 
-typedef enum
+#include <array>
+#include <cstdint>
+
+
+static constexpr auto max_players = 10;
+
+enum class playerStatus : std::uint8_t
 {
     playerStopped,
     playerPlaying,
     playerPaused,
     playerPausing,
     playerStopping,
-} playerStatus;
+};
 
 class PlayersPool;
 
@@ -23,42 +28,56 @@ class Player
 public:
     bool play(const char* filename, PlayMode mode = PlayModeNormal)
     {
-        if (status == playerPausing || status == playerStopping)
+        if (status == playerStatus::playerPausing || status == playerStatus::playerStopping)
         {
             wav.stop();
-            status = playerStopped;
+            status = playerStatus::playerStopped;
         }
 
-        if (status == playerStopped || status == playerPaused)
+        if (status == playerStatus::playerStopped || status == playerStatus::playerPaused)
         {
             wav.setVolume(base_volume);
         }
 
         if (wav.play(filename, mode))
         {
-            status = playerPlaying;
+            status = playerStatus::playerPlaying;
             return true;
         }
 
         return false;
     }
 
+    auto get_duration() noexcept
+    {
+        return wav.duration();
+    }
+
+    auto get_samples_left() noexcept
+    {
+        return wav.getSamplesLeft();
+    }
+
     void stop(bool ramp_volume = false)
     {
-        if (status == playerStopped)
-            return;
-
-        if (ramp_volume && status != playerPaused)
+        if (status == playerStatus::playerStopped)
         {
-            if (status == playerPlaying)
-                wav.setVolume(0);
+            return;
+        }
 
-            status = playerStopping;
+        if (ramp_volume && status != playerStatus::playerPaused)
+        {
+            if (status == playerStatus::playerPlaying)
+            {
+                wav.setVolume(0);
+            }
+
+            status = playerStatus::playerStopping;
         }
         else
         {
             wav.stop();
-            status = playerStopped;
+            status = playerStatus::playerStopped;
         }
     }
 
@@ -66,51 +85,57 @@ public:
     {
         switch (status)
         {
-        case playerStopping:
-        case playerStopped:
-        default: return playerStopped;
+        case playerStatus::playerStopping:
+        case playerStatus::playerStopped:
+        default: return static_cast<std::int32_t>(playerStatus::playerStopped);
 
-        case playerPlaying: return playerPlaying;
+        case playerStatus::playerPlaying: return static_cast<std::int32_t>(playerStatus::playerPlaying);
 
-        case playerPausing:
-        case playerPaused: return playerPaused;
+        case playerStatus::playerPausing:
+        case playerStatus::playerPaused: return static_cast<std::int32_t>(playerStatus::playerPaused);
         }
     }
 
     void pause(bool ramp_volume = false)
     {
-        if (status == playerPaused || status == playerStopped || status == playerStopping)
+        if (status == playerStatus::playerPaused || status == playerStatus::playerStopped || status == playerStatus::playerStopping)
+        {
             return;
+        }
 
         if (ramp_volume)
         {
-            if (status == playerPlaying)
+            if (status == playerStatus::playerPlaying)
             {
                 wav.setVolume(0);
-                status = playerPausing;
+                status = playerStatus::playerPausing;
             }
         }
         else
         {
             wav.pause();
-            status = playerPaused;
+            status = playerStatus::playerPaused;
         }
     }
 
     void resume()
     {
-        if (status == playerStopping || status == playerStopped || status == playerPlaying)
+        if (status == playerStatus::playerStopping || status == playerStatus::playerStopped || status == playerStatus::playerPlaying)
+        {
             return;
+        }
 
-        if (status == playerPausing)
+        if (status == playerStatus::playerPausing)
+        {
             wav.pause();
+        }
 
         wav.setVolume(base_volume);
         wav.resume();
-        status = playerPlaying;
+        status = playerStatus::playerPlaying;
     }
 
-    float getVolume()
+    [[nodiscard]] float getVolume() const
     {
         return base_volume;
     }
@@ -122,28 +147,28 @@ public:
     }
 
 protected:
-    Player() : status(playerStopped), busy(false), base_volume(1.0f)
-    {
-    }
+    Player() = default;
     void poll()
     {
-        if (status == playerStopping && wav.getVolume() == 0)
+        if (status == playerStatus::playerStopping && wav.getVolume() == 0)
         {
             wav.stop();
         }
-        else if (status == playerPausing && wav.getVolume() == 0)
+        else if (status == playerStatus::playerPausing && wav.getVolume() == 0)
         {
             wav.pause();
-            status = playerPaused;
+            status = playerStatus::playerPaused;
         }
 
         if (wav.getStatus() == AudioSourceStopped)
-            status = playerStopped;
+        {
+            status = playerStatus::playerStopped;
+        }
     }
 
-    playerStatus status;
-    bool busy;
-    float base_volume;
+    playerStatus status{ playerStatus::playerStopped };
+    bool busy{ false };
+    float base_volume{ 1.0F };
     WavPlayer wav;
 };
 
@@ -160,13 +185,12 @@ class PlayersPool
      */
 
 private:
-    PlayersPool() : initialized(false), synchronized(true)
-    {
-    }
-    Player players[MAX_PLAYERS];
+    PlayersPool() = default;
 
-    bool initialized;
-    bool synchronized;
+    std::array<Player, max_players> players{};
+
+    bool initialized{ false };
+    bool synchronized{ true };
 
 public:
     void initialize(bool synchronized = true)
@@ -184,9 +208,11 @@ public:
     Player* acquire()
     {
         if (!synchronized || !initialized)
-            return NULL;
+        {
+            return nullptr;
+        }
 
-        for (uint8_t i = 0; i < MAX_PLAYERS; i++)
+        for (uint8_t i = 0; i < max_players; i++)
         {
             if (!players[i].busy)
             {
@@ -195,13 +221,15 @@ public:
             }
         }
 
-        return NULL;
+        return nullptr;
     }
 
-    void release(Player* player)
+    void release(Player* player) const
     {
-        if (!synchronized || !initialized || !player)
+        if (!synchronized || !initialized || (player == nullptr))
+        {
             return;
+        }
 
         // Ensure stopped state
         player->stop();
@@ -211,10 +239,14 @@ public:
     Player* get(uint8_t num)
     {
         if (synchronized || !initialized)
-            return NULL;
+        {
+            return nullptr;
+        }
 
-        if (num > MAX_PLAYERS)
-            return NULL;
+        if (num > max_players)
+        {
+            return nullptr;
+        }
 
         players[num].busy = true;
         return &players[num];
@@ -223,21 +255,27 @@ public:
     void poll()
     {
         if (!initialized)
+        {
             return;
+        }
 
-        for (uint8_t i = 0; i < MAX_PLAYERS; i++)
+        for (uint8_t i = 0; i < max_players; i++)
         {
             if (players[i].busy)
+            {
                 players[i].poll();
+            }
         }
     }
 
     void stopAll(bool ramp_volume = false)
     {
         if (!initialized)
+        {
             return;
+        }
 
-        for (uint8_t i = 0; i < MAX_PLAYERS; i++)
+        for (uint8_t i = 0; i < max_players; i++)
         {
             if (players[i].busy)
                 players[i].stop(ramp_volume);
@@ -247,53 +285,67 @@ public:
     void pauseAll(bool ramp_volume = false)
     {
         if (!initialized)
+        {
             return;
+        }
 
-        for (uint8_t i = 0; i < MAX_PLAYERS; i++)
+        for (uint8_t i = 0; i < max_players; i++)
         {
             if (players[i].busy)
+            {
                 players[i].pause(ramp_volume);
+            }
         }
     }
 
     void resumeAll()
     {
         if (!initialized)
+        {
             return;
+        }
 
-        for (uint8_t i = 0; i < MAX_PLAYERS; i++)
+        for (uint8_t i = 0; i < max_players; i++)
         {
             if (players[i].busy)
+            {
                 players[i].resume();
+            }
         }
     }
 
     void releaseAll()
     {
         if (!initialized || !synchronized)
+        {
             return;
+        }
 
-        for (uint8_t i = 0; i < MAX_PLAYERS; i++)
+        for (uint8_t i = 0; i < max_players; i++)
+        {
             release(&players[i]);
+        }
     }
 
     bool playing()
     {
         AudioSourceStatus status;
 
-        for (uint8_t i = 0; i < MAX_PLAYERS; i++)
+        for (uint8_t i = 0; i < max_players; i++)
         {
             status = players[i].wav.getStatus();
             if (status == AudioSourcePlaying || status == AudioSourcePaused)
+            {
                 return true;
+            }
         }
 
         return false;
     }
 
-    inline uint8_t getMaxPlayers()
+    static constexpr auto getMaxPlayers()
     {
-        return MAX_PLAYERS;
+        return max_players;
     }
 };
 

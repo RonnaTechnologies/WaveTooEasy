@@ -22,16 +22,17 @@
  ***************************************************************************/
 
 
-#include <Arduino.h>
-
 #include "Led.h"
 #include "Player.h"
+#include "wiring.h"
 
 #undef min
 #undef max
 
+#include <algorithm>
 #include <array>
 #include <charconv>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <string>
@@ -40,7 +41,16 @@
 
 namespace
 {
+    // Constants
     constexpr auto wav_extension = std::string_view{ ".wav\0" };
+    constexpr auto baudrate = 115'200;
+    constexpr auto serial_timeout_us = uint32_t{ 10'000 };
+    constexpr auto note_on_message = 0x99;
+    constexpr auto max_velocity_float = 127.F;
+    constexpr auto t_125ms = 125;
+    constexpr auto t_250ms = 250;
+    constexpr auto t_500ms = 500;
+    constexpr auto t_1000ms = 1'000;
 
     // Configuration
     const std::uint32_t sample_rate = 44'100;
@@ -69,57 +79,51 @@ namespace
         {
             playing = true;
             led1.stopBlink();
-            led1.blink(250, 125);
+            led1.blink(t_250ms, t_125ms);
         }
         else if (!Audio.isPlaying() && playing)
         {
             playing = false;
             led1.stopBlink();
-            led1.blink(1'000, 500);
+            led1.blink(t_1000ms, t_500ms);
         }
     }
-
 } // namespace
 
 
 void setup()
 {
-
     // Configure LEDs
     led1.initialize();
     led2.initialize();
 
-
     players.initialize(false);
     serial = &Serial;
     serial->setTimeout(0);
-    serial->begin(115'200, UARTClass::Mode_8N1);
+    serial->begin(baudrate, UARTClass::Mode_8N1);
 
     if (!disable_leds)
     {
         led2.setOn();
-        led1.blink(1'000, 500);
+        led1.blink(t_1000ms, t_500ms);
     }
 
     Audio.begin(sample_rate);
 
-
-    delay(500);
+    delay(t_500ms);
 }
 
 
 void loop()
 {
-
-    static int player_id = 0;
+    static auto player_id = 0;
+    static auto stop_time = std::uint32_t{};
+    static constexpr auto channel_note =
+    std::array<std::uint8_t, PlayersPool::getMaxPlayers()>{ 26, 36, 38, 41, 44, 47, 49, 50, 51, 57 };
 
     pollAudioActivityLED();
 
     players.poll();
-
-
-    const auto start = micros();
-    constexpr auto serial_timeout_us = uint32_t{ 10000 };
 
     if (serial->available() > 0)
     {
@@ -127,17 +131,17 @@ void loop()
         size_t data_index = 0;
         for (auto start = micros(); static_cast<int32_t>(micros() - start - serial_timeout_us) < 0;)
         {
-            const auto c = serial->read();
+            const auto input = serial->read();
 
-            if (data_index == 0 && c == 0x99)
+            if (data_index == 0 && input == note_on_message)
             {
-                data_buffer[data_index++] = static_cast<byte>(c);
+                data_buffer[data_index++] = static_cast<byte>(input);
                 continue;
             }
 
-            if (data_index != 0 && c > 0)
+            if (data_index != 0 && input > 0)
             {
-                data_buffer[data_index++] = static_cast<byte>(c);
+                data_buffer[data_index++] = static_cast<byte>(input);
                 if (data_index == 3)
                 {
                     break;
@@ -145,20 +149,17 @@ void loop()
             }
         }
 
-
         const auto message = data_buffer[0];
         const auto note = data_buffer[1];
         const auto velocity = data_buffer[2];
 
-        if (message == 0x99 && data_index == 3)
+        if (message == note_on_message && data_index == 3)
         {
+            auto* player = players.get(player_id);
+            player_id = (player_id + 1) % PlayersPool::getMaxPlayers();
 
-
-            auto player = players.get(player_id);
-            player_id = (player_id + 1) % MAX_PLAYERS;
-            auto volume = static_cast<float>(velocity) / 127.F;
+            auto volume = static_cast<float>(velocity) / max_velocity_float;
             volume = std::max(volume, 0.F);
-
             volume = std::min(volume, 1.0F);
 
             player->setVolume(volume);
@@ -172,7 +173,9 @@ void loop()
             file_name.reserve(note_str.size() + wav_extension.size());
             file_name.append(note_str).append(wav_extension);
 
+            player->stop(true);
             player->play(file_name.c_str());
+            player_id = (player_id + 1) % PlayersPool::getMaxPlayers();
         }
     }
 }
