@@ -23,62 +23,97 @@
 #ifndef __LED_H__
 #define __LED_H__
 
-#include <Arduino.h>
+
 #include <ServiceTimer.h>
+
+#include "wiring_constants.h"
+#include "wiring_digital.h"
+
+#include <cstdint>
 
 class BoardLed : public STObject
 {
 public:
-	BoardLed(uint32_t led) :
-		led(led), value(false), blink_counter(0), blink_cycle_ticks(0), blink_time_on(0) {}
+    BoardLed(const BoardLed&) = default;
+    BoardLed(BoardLed&&) = delete;
+    BoardLed& operator=(const BoardLed&) = default;
+    BoardLed& operator=(BoardLed&&) = delete;
 
-	void initialize() { pinMode(led, OUTPUT); set(false); }
-	void end() { pinMode(led, INPUT); }
+    virtual ~BoardLed() = default;
 
-	void toggle()
-	{
-		isOn() ? setOff() : setOn();
-	}
+    explicit BoardLed(uint32_t led) : led(led)
+    {
+    }
 
-	inline void set(bool on) { value = on; digitalWrite(led, value ? LOW : HIGH); }
-	inline void setOn() { set(true); }
-	inline void setOff() { set(false); }
-	inline bool isOn() { return value; }
+    void initialize()
+    {
+        pinMode(led, OUTPUT);
+        set(false);
+    }
+    void end() const
+    {
+        pinMode(led, INPUT);
+    }
 
-	void blink(uint32_t time_ms, uint32_t time_on_ms)
-	{
-		blink_cycle_ticks = (1000 / getFrequency()) * time_ms;
-		blink_time_on = time_on_ms;
-		blink_counter = 0;
-		set(true);
-		add();
-	}
+    void toggle()
+    {
+        isOn() ? setOff() : setOn();
+    }
 
-	void stopBlink()
-	{
-		remove();
-		setOff();
-	}
+    void set(bool on)
+    {
+        value = on;
+        digitalWrite(led, value ? LOW : HIGH);
+    }
+    void setOn()
+    {
+        set(true);
+    }
+    void setOff()
+    {
+        set(false);
+    }
+    [[nodiscard]] bool isOn() const
+    {
+        return value;
+    }
 
-	void poll()
-	{
-		blink_counter++;
-		if (isOn() && blink_counter > blink_time_on)
-			setOff();
+    void blink(uint32_t time_ms, uint32_t time_on_ms)
+    {
+        blink_cycle_ticks = (1'000 / getFrequency()) * time_ms;
+        blink_time_on = time_on_ms;
+        blink_counter = 0;
+        set(true);
+        add();
+    }
 
-		if (!isOn() && blink_counter > blink_cycle_ticks)
-		{
-			blink_counter = 0;
-			setOn();
-		}
-	}
+    void stopBlink()
+    {
+        remove();
+        setOff();
+    }
+
+    void poll() override
+    {
+        blink_counter++;
+        if (isOn() && blink_counter > blink_time_on)
+        {
+            setOff();
+        }
+
+        if (!isOn() && blink_counter > blink_cycle_ticks)
+        {
+            blink_counter = 0;
+            setOn();
+        }
+    }
 
 private:
-	uint32_t led;
-	bool value;
-	uint32_t blink_counter;
-	uint32_t blink_cycle_ticks;
-	uint32_t blink_time_on;
+    std::uint32_t led;
+    bool value{ false };
+    std::uint32_t blink_counter{ 0 };
+    std::uint32_t blink_cycle_ticks{ 0 };
+    std::uint32_t blink_time_on{ 0 };
 };
 
 #endif /* __LED_H__ */

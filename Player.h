@@ -81,18 +81,18 @@ public:
         }
     }
 
-    int32_t getStatus()
+    playerStatus getStatus()
     {
         switch (status)
         {
         case playerStatus::playerStopping:
         case playerStatus::playerStopped:
-        default: return static_cast<std::int32_t>(playerStatus::playerStopped);
+        default: return playerStatus::playerStopped;
 
-        case playerStatus::playerPlaying: return static_cast<std::int32_t>(playerStatus::playerPlaying);
+        case playerStatus::playerPlaying: return playerStatus::playerPlaying;
 
         case playerStatus::playerPausing:
-        case playerStatus::playerPaused: return static_cast<std::int32_t>(playerStatus::playerPaused);
+        case playerStatus::playerPaused: return playerStatus::playerPaused;
         }
     }
 
