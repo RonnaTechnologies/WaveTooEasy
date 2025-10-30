@@ -21,15 +21,12 @@
  * GNU General Public License for more details.
  ***************************************************************************/
 
+#include "variant.h"
+#include "wiring.h"
 
 #include "Led.h"
 #include "Player.h"
-#include "wiring.h"
 
-#undef min
-#undef max
-
-#include <algorithm>
 #include <array>
 #include <charconv>
 #include <cstddef>
@@ -37,6 +34,10 @@
 #include <cstdio>
 #include <string>
 #include <string_view>
+
+
+#undef min
+#undef max
 
 
 namespace

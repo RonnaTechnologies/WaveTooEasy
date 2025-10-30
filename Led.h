@@ -31,6 +31,9 @@
 
 #include <cstdint>
 
+#undef min
+#undef max
+
 class BoardLed : public STObject
 {
 public:
@@ -78,7 +81,7 @@ public:
         return value;
     }
 
-    void blink(uint32_t time_ms, uint32_t time_on_ms)
+    void blink(std::uint32_t time_ms, std::uint32_t time_on_ms)
     {
         blink_cycle_ticks = (1'000 / getFrequency()) * time_ms;
         blink_time_on = time_on_ms;
