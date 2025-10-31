@@ -21,6 +21,7 @@
  * GNU General Public License for more details.
  ***************************************************************************/
 
+
 #include "WString.h"
 #include "variant.h"
 #include "wiring.h"
@@ -122,24 +123,61 @@ void setup()
 
 void loop()
 {
-    static auto player_id = 0;
-    static auto stop_time = std::uint32_t{};
-    static constexpr auto channel_note =
-    std::array<std::uint8_t, PlayersPool::getMaxPlayers()>{ 26, 36, 38, 41, 44, 47, 49, 50, 51, 57 };
+    static constexpr auto player_note = std::array<std::uint8_t, PlayersPool::getMaxPlayers()>{};
 
     pollAudioActivityLED();
-
     players.poll();
-
     serial_midi.poll(serial_timeout_us);
 
     if (serial_midi.is_note_on())
     {
+        const auto now = millis();
         const auto note = serial_midi.get_note();
         const auto velocity = serial_midi.get_velocity();
 
-        auto* player = players.get(player_id);
-        player_id = (player_id + 1) % PlayersPool::getMaxPlayers();
+        Player* player = nullptr;
+        Player* backup_player = nullptr;
+        for (std::size_t i = 0; i < PlayersPool::getMaxPlayers(); ++i)
+        {
+            auto* selected_player = players.get(i);
+            if (static_cast<std::int32_t>(selected_player->get_stop_time() - now) <= 0)
+            {
+                player = players.get(i);
+            }
+            if (backup_player->get_stop_time() > selected_player->get_stop_time())
+            {
+                backup_player = selected_player;
+            }
+        }
+
+        if (player == nullptr)
+        {
+            // If no player has been found, find the oldest with same sound
+            for (std::size_t i = 0; i < PlayersPool::getMaxPlayers(); ++i)
+            {
+                auto* selected_player = players.get(i);
+                if (selected_player->get_sound_id() == note)
+                {
+                    if (player == nullptr)
+                    {
+                        player = selected_player;
+                    }
+                    else
+                    {
+                        if (player->get_stop_time() > selected_player->get_stop_time())
+                        {
+                            backup_player = selected_player;
+                        }
+                    }
+                }
+            }
+
+            if (player == nullptr)
+            {
+                player = backup_player;
+            }
+        }
+
 
         const auto volume = std::clamp(static_cast<float>(velocity) / max_velocity_float, 0.0F, 1.0F);
 
@@ -154,8 +192,8 @@ void loop()
         file_name.reserve(note_str.size() + wav_extension.size());
         file_name.append(note_str).append(wav_extension);
 
-        player->stop(true);
-        player->play(file_name.c_str());
-        player_id = (player_id + 1) % PlayersPool::getMaxPlayers();
+        player->stop();
+        player->play(file_name.c_str(), PlayModeNormal, note);
+        serial_midi.println(String{ static_cast<int>(player->get_sound_id()) });
     }
 }

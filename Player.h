@@ -3,12 +3,13 @@
 
 
 #include "WavPlayer.h"
+#include "wiring.h"
 
 #include <array>
 #include <cstdint>
 
 
-static constexpr auto max_players = 12;
+static constexpr auto max_players = 10;
 
 enum class playerStatus : std::uint8_t
 {
@@ -26,12 +27,13 @@ class Player
     friend class PlayersPool;
 
 public:
-    bool play(const char* filename, PlayMode mode = PlayModeNormal)
+    bool play(const char* filename, PlayMode mode = PlayModeNormal, std::size_t sid = 0)
     {
         if (status == playerStatus::playerPausing || status == playerStatus::playerStopping)
         {
             wav.stop();
             status = playerStatus::playerStopped;
+            sound_id = 0;
         }
 
         if (status == playerStatus::playerStopped || status == playerStatus::playerPaused)
@@ -41,6 +43,8 @@ public:
 
         if (wav.play(filename, mode))
         {
+            stop_time = millis() + wav.duration();
+            sound_id = sid;
             status = playerStatus::playerPlaying;
             return true;
         }
@@ -51,6 +55,16 @@ public:
     auto get_duration() noexcept
     {
         return wav.duration();
+    }
+
+    [[nodiscard]] auto get_stop_time() const noexcept
+    {
+        return stop_time;
+    }
+
+    [[nodiscard]] auto get_sound_id() const noexcept
+    {
+        return sound_id;
     }
 
     auto get_samples_left() noexcept
@@ -169,6 +183,8 @@ protected:
     playerStatus status{ playerStatus::playerStopped };
     bool busy{ false };
     float base_volume{ 1.0F };
+    std::uint32_t stop_time{};
+    std::size_t sound_id{};
     WavPlayer wav;
 };
 
@@ -278,7 +294,9 @@ public:
         for (uint8_t i = 0; i < max_players; i++)
         {
             if (players[i].busy)
+            {
                 players[i].stop(ramp_volume);
+            }
         }
     }
 
