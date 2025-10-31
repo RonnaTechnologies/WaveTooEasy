@@ -21,12 +21,15 @@
  * GNU General Public License for more details.
  ***************************************************************************/
 
+#include "WString.h"
 #include "variant.h"
 #include "wiring.h"
 
 #include "Led.h"
 #include "Player.h"
+#include "SerialMIDI.hpp"
 
+#include <algorithm>
 #include <array>
 #include <charconv>
 #include <cstddef>
@@ -46,8 +49,8 @@ namespace
     constexpr auto wav_extension = std::string_view{ ".wav\0" };
     constexpr auto baudrate = 115'200;
     constexpr auto serial_timeout_us = uint32_t{ 10'000 };
-    constexpr auto note_on_message = 0x99;
     constexpr auto max_velocity_float = 127.F;
+    constexpr auto nb_sensors = 10U;
     constexpr auto t_125ms = 125;
     constexpr auto t_250ms = 250;
     constexpr auto t_500ms = 500;
@@ -64,8 +67,7 @@ namespace
     // Players
     PlayersPool players = PlayersPool::getInstance();
 
-    // Serial
-    UARTClass* serial = nullptr;
+    midi::serial serial_midi;
 
     void pollAudioActivityLED()
     {
@@ -99,9 +101,6 @@ void setup()
     led2.initialize();
 
     players.initialize(false);
-    serial = &Serial;
-    serial->setTimeout(0);
-    serial->begin(baudrate, UARTClass::Mode_8N1);
 
     if (!disable_leds)
     {
@@ -110,8 +109,14 @@ void setup()
     }
 
     Audio.begin(sample_rate);
+    serial_midi.begin(baudrate);
 
-    delay(t_500ms);
+    delay(t_1000ms);
+    delay(t_1000ms);
+    for (std::size_t i = 0; i < nb_sensors; ++i)
+    {
+        serial_midi.poll(serial_timeout_us);
+    }
 }
 
 
@@ -126,57 +131,31 @@ void loop()
 
     players.poll();
 
-    if (serial->available() > 0)
+    serial_midi.poll(serial_timeout_us);
+
+    if (serial_midi.is_note_on())
     {
-        byte data_buffer[3U]{ 0, 0, 0 };
-        size_t data_index = 0;
-        for (auto start = micros(); static_cast<int32_t>(micros() - start - serial_timeout_us) < 0;)
-        {
-            const auto input = serial->read();
+        const auto note = serial_midi.get_note();
+        const auto velocity = serial_midi.get_velocity();
 
-            if (data_index == 0 && input == note_on_message)
-            {
-                data_buffer[data_index++] = static_cast<byte>(input);
-                continue;
-            }
+        auto* player = players.get(player_id);
+        player_id = (player_id + 1) % PlayersPool::getMaxPlayers();
 
-            if (data_index != 0 && input > 0)
-            {
-                data_buffer[data_index++] = static_cast<byte>(input);
-                if (data_index == 3)
-                {
-                    break;
-                }
-            }
-        }
+        const auto volume = std::clamp(static_cast<float>(velocity) / max_velocity_float, 0.0F, 1.0F);
 
-        const auto message = data_buffer[0];
-        const auto note = data_buffer[1];
-        const auto velocity = data_buffer[2];
+        player->setVolume(volume);
 
-        if (message == note_on_message && data_index == 3)
-        {
-            auto* player = players.get(player_id);
-            player_id = (player_id + 1) % PlayersPool::getMaxPlayers();
+        std::array<char, 4U> note_str_buffer{};
+        std::to_chars(note_str_buffer.begin(), note_str_buffer.end(), int{ note });
 
-            auto volume = static_cast<float>(velocity) / max_velocity_float;
-            volume = std::max(volume, 0.F);
-            volume = std::min(volume, 1.0F);
+        const auto note_str = std::string_view{ note_str_buffer.data() };
 
-            player->setVolume(volume);
+        std::string file_name;
+        file_name.reserve(note_str.size() + wav_extension.size());
+        file_name.append(note_str).append(wav_extension);
 
-            std::array<char, 4U> note_str_buffer{};
-            std::to_chars(note_str_buffer.begin(), note_str_buffer.end(), int{ note });
-
-            const auto note_str = std::string_view{ note_str_buffer.data() };
-
-            std::string file_name;
-            file_name.reserve(note_str.size() + wav_extension.size());
-            file_name.append(note_str).append(wav_extension);
-
-            player->stop(true);
-            player->play(file_name.c_str());
-            player_id = (player_id + 1) % PlayersPool::getMaxPlayers();
-        }
+        player->stop(true);
+        player->play(file_name.c_str());
+        player_id = (player_id + 1) % PlayersPool::getMaxPlayers();
     }
 }

@@ -8,7 +8,7 @@
 #include <cstdint>
 
 
-static constexpr auto max_players = 10;
+static constexpr auto max_players = 12;
 
 enum class playerStatus : std::uint8_t
 {
