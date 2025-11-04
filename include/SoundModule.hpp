@@ -80,6 +80,12 @@ namespace sound
             serial_midi.poll(serial::timeout_us);
         }
 
+        template <typename T>
+        void print(const T& value)
+        {
+            serial_midi.println(String{ value });
+        }
+
     private:
         static constexpr std::string_view wav_extension = std::string_view{ ".wav\0" };
         static constexpr auto max_velocity_float = 127.F;

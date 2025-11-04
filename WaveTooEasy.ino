@@ -21,9 +21,10 @@
  * GNU General Public License for more details.
  ***************************************************************************/
 
+#include "ff.h"
 
-#include "Led.h"
-#include "SoundModule.hpp"
+#include "include/Led.h"
+#include "include/SoundModule.hpp"
 
 
 #undef min
@@ -97,6 +98,40 @@ void setup()
     {
         module.serial_poll();
     }
+
+    DIR dir{};
+    const auto res = f_opendir(&dir, "/");
+    if (res != FR_OK)
+    {
+        module.print("Failed to open root folder.");
+        return;
+    }
+
+
+    module.print("Root folder open.");
+
+    FILINFO file_info;
+    for (;;)
+    {
+        const auto result = f_readdir(&dir, &file_info);
+        if (result != FR_OK || file_info.fname[0] == 0)
+        {
+            break;
+        }
+
+        const auto file_name = String{ &file_info.fname[0] };
+        if (file_name.endsWith(".wav") != 0)
+        {
+
+            module.print(file_info.fname);
+        }
+
+        // if ((file_info.fattrib & AM_DIR) != 0)
+        // {
+        // }
+    }
+
+    f_closedir(&dir);
 }
 
 
