@@ -23,6 +23,7 @@
 
 #include "ff.h"
 
+#include "include/FileSystem.hpp"
 #include "include/Led.h"
 #include "include/SoundModule.hpp"
 
@@ -99,39 +100,14 @@ void setup()
         module.serial_poll();
     }
 
-    DIR dir{};
-    const auto res = f_opendir(&dir, "/");
-    if (res != FR_OK)
+
+    fs::FileSystem sd_dir{ "/" };
+    const auto files = sd_dir.list_files();
+
+    for (const auto& file : files)
     {
-        module.print("Failed to open root folder.");
-        return;
+        module.print(file.c_str());
     }
-
-
-    module.print("Root folder open.");
-
-    FILINFO file_info;
-    for (;;)
-    {
-        const auto result = f_readdir(&dir, &file_info);
-        if (result != FR_OK || file_info.fname[0] == 0)
-        {
-            break;
-        }
-
-        const auto file_name = String{ &file_info.fname[0] };
-        if (file_name.endsWith(".wav") != 0)
-        {
-
-            module.print(file_info.fname);
-        }
-
-        // if ((file_info.fattrib & AM_DIR) != 0)
-        // {
-        // }
-    }
-
-    f_closedir(&dir);
 }
 
 
