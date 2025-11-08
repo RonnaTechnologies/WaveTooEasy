@@ -3,12 +3,6 @@
 
 #include "include/FileSystem.hpp"
 
-#include <filesystem>
-#include <iostream>
-#include <string>
-#include <string_view>
-#include <vector>
-
 SCENARIO("Sound files are parsed successfully")
 {
     GIVEN("sound files names")
