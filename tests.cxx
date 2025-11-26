@@ -3,8 +3,63 @@
 
 #include "include/FileSystem.hpp"
 
+#include <charconv>
+#include <chrono>
+#include <cstdint>
 #include <string_view>
+#include <thread>
+#include <unordered_map>
 
+namespace
+{
+
+    auto millis() -> std::uint32_t
+    {
+        using namespace std::chrono;
+        static auto t_start = high_resolution_clock::now();
+        const auto now = high_resolution_clock::now();
+        return duration_cast<milliseconds>(now - t_start).count();
+    }
+
+    void delay(const std::uint32_t delay_ms)
+    {
+        using namespace std::chrono;
+        using namespace std::this_thread;
+        sleep_for(milliseconds{ delay_ms });
+    }
+
+} // namespace
+
+SCENARIO("The millis() and delay() functions work as expected")
+{
+    static constexpr auto ref_delay_ms = std::uint32_t{ 5 };
+    GIVEN("calling millis() returns a small value")
+    {
+        const auto t_start = millis();
+        REQUIRE(t_start < ref_delay_ms);
+
+        AND_GIVEN("a short delay")
+        {
+            delay(ref_delay_ms);
+
+            AND_GIVEN("another call to millis()")
+            {
+                const auto t_stop = millis();
+
+                THEN("the elapsed time is greater or equals the delay")
+                {
+                    const auto delta = t_stop - t_start;
+                    REQUIRE(delta == ref_delay_ms);
+                }
+            }
+        }
+    }
+}
+
+
+SCENARIO("Player index selection works as expected")
+{
+}
 
 SCENARIO("Sound files are parsed successfully")
 {
@@ -12,6 +67,8 @@ SCENARIO("Sound files are parsed successfully")
     {
         const auto dir = fs::FileSystem{ "../data" };
         const auto list = dir.list_files();
+
+        std::unordered_map<std::uint8_t, std::unordered_map<std::uint8_t, std::string>> notes{};
 
         for (const auto& file_name : list)
         {
@@ -23,7 +80,15 @@ SCENARIO("Sound files are parsed successfully")
             const auto note_str = std::string_view{ name.begin(), name.begin() + dash_pos };
             const auto index_str = std::string_view{ name.begin() + dash_pos + 1, name.end() };
 
-            [[maybe_unused]] auto a = 1;
+            std::uint8_t note{};
+            std::from_chars(note_str.data(), note_str.data() + note_str.size(), note);
+
+            std::uint8_t index{};
+            std::from_chars(index_str.data(), index_str.data() + index_str.size(), index);
+
+            notes[note][index] = file_name;
         }
+
+        [[maybe_unused]] auto a = 1;
     }
 }
