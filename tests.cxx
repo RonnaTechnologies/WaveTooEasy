@@ -2,6 +2,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "include/FileSystem.hpp"
+#include "include/PlayersManager.hpp"
 
 #include <charconv>
 #include <chrono>
@@ -59,6 +60,27 @@ SCENARIO("The millis() and delay() functions work as expected")
 
 SCENARIO("Player index selection works as expected")
 {
+    static constexpr auto max_players = 10;
+
+    GIVEN("a MIDI note and a velocity")
+    {
+        const auto snare_note = std::uint8_t{ 36 };
+
+        AND_GIVEN("a player manager")
+        {
+            auto player_manager = proc::PlayerManager<max_players>{ &millis };
+
+            WHEN("a note is added to a free slot")
+            {
+                const auto success = player_manager.insert_note(snare_note, 1000);
+
+                THEN("the note is given a slot")
+                {
+                    REQUIRE(success);
+                }
+            }
+        }
+    }
 }
 
 SCENARIO("Sound files are parsed successfully")
