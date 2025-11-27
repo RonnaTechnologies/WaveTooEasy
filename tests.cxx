@@ -1,9 +1,11 @@
+
 #include <catch2/catch_all.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include "include/FileSystem.hpp"
 #include "include/PlayersManager.hpp"
 
+#include <algorithm>
 #include <charconv>
 #include <chrono>
 #include <cstdint>
@@ -72,7 +74,7 @@ SCENARIO("Player index selection works as expected")
 
             WHEN("a note is added to a free slot")
             {
-                const auto success = player_manager.insert_note(snare_note, 1000);
+                const auto success = player_manager.insert_note(snare_note, 127, 1000);
 
                 THEN("the note is given a slot")
                 {
@@ -83,34 +85,96 @@ SCENARIO("Player index selection works as expected")
     }
 }
 
-SCENARIO("Sound files are parsed successfully")
+SCENARIO("Add many notes to players manager")
 {
-    GIVEN("sound files names")
+    static constexpr auto max_players = 10;
+    const auto snare_note = std::uint8_t{ 36 };
+
+    const auto kick_note = std::uint8_t{ 38 };
+    GIVEN("a player manager")
     {
-        const auto dir = fs::FileSystem{ "../data" };
-        const auto list = dir.list_files();
-
-        std::unordered_map<std::uint8_t, std::unordered_map<std::uint8_t, std::string>> notes{};
-
-        for (const auto& file_name : list)
+        auto player_manager = proc::PlayerManager<max_players>{ &millis };
+        WHEN("two notes are added")
         {
-            const auto slash_pos = static_cast<std::ptrdiff_t>(file_name.find_last_of('/'));
-            const auto name = std::string_view{ file_name.begin() + slash_pos + 1, file_name.end() - 4 };
+            player_manager.insert_note(snare_note, 127, 1000);
+            player_manager.insert_note(kick_note, 127, 1000);
 
-            const auto dash_pos = static_cast<std::ptrdiff_t>(name.find_first_of('-'));
-
-            const auto note_str = std::string_view{ name.begin(), name.begin() + dash_pos };
-            const auto index_str = std::string_view{ name.begin() + dash_pos + 1, name.end() };
-
-            std::uint8_t note{};
-            std::from_chars(note_str.data(), note_str.data() + note_str.size(), note);
-
-            std::uint8_t index{};
-            std::from_chars(index_str.data(), index_str.data() + index_str.size(), index);
-
-            notes[note][index] = file_name;
+            const auto& slots = player_manager.get_slots();
+            const auto nb_busy_slots = std::ranges::count_if(slots, [](const auto& slot) { return slot.length > 0; });
+            REQUIRE(nb_busy_slots == 2);
         }
-
-        [[maybe_unused]] auto a = 1;
     }
 }
+
+SCENARIO("Can add a new slots, when a slot has been freed")
+{
+    static constexpr auto max_players = 10;
+
+    GIVEN("a player manager")
+    {
+        auto player_manager = proc::PlayerManager<max_players>{ &millis };
+        AND_GIVEN("all slots are made busy")
+        {
+            for (std::size_t i = 0; i < max_players; ++i)
+            {
+                player_manager.insert_note(36 + i, i + 1, 100);
+                delay(10);
+            }
+
+            delay(10);
+
+            REQUIRE(player_manager.insert_note(40, 127, 1000));
+        }
+    }
+}
+
+SCENARIO("Cannot add a new slots, when all slots are busy")
+{
+    static constexpr auto max_players = 10;
+
+    GIVEN("a player manager")
+    {
+        auto player_manager = proc::PlayerManager<max_players>{ &millis };
+        AND_GIVEN("all slots are made busy")
+        {
+            for (std::size_t i = 0; i < max_players; ++i)
+            {
+                player_manager.insert_note(36 + i, i + 1, 1000);
+            }
+
+            REQUIRE_FALSE(player_manager.insert_note(40, 127, 1000));
+        }
+    }
+}
+
+// SCENARIO("Sound files are parsed successfully")
+// {
+//     GIVEN("sound files names")
+//     {
+//         const auto dir = fs::FileSystem{ "../data" };
+//         const auto list = dir.list_files();
+
+//         std::unordered_map<std::uint8_t, std::unordered_map<std::uint8_t, std::string>> notes{};
+
+//         for (const auto& file_name : list)
+//         {
+//             const auto slash_pos = static_cast<std::ptrdiff_t>(file_name.find_last_of('/'));
+//             const auto name = std::string_view{ file_name.begin() + slash_pos + 1, file_name.end() - 4 };
+
+//             const auto dash_pos = static_cast<std::ptrdiff_t>(name.find_first_of('-'));
+
+//             const auto note_str = std::string_view{ name.begin(), name.begin() + dash_pos };
+//             const auto index_str = std::string_view{ name.begin() + dash_pos + 1, name.end() };
+
+//             std::uint8_t note{};
+//             std::from_chars(note_str.data(), note_str.data() + note_str.size(), note);
+
+//             std::uint8_t index{};
+//             std::from_chars(index_str.data(), index_str.data() + index_str.size(), index);
+
+//             notes[note][index] = file_name;
+//         }
+
+//         [[maybe_unused]] auto a = 1;
+//     }
+// }
