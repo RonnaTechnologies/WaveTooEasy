@@ -18,15 +18,14 @@ namespace proc
         {
         }
 
-        auto compute_index_for(const std::uint8_t note) -> std::size_t
+        auto find_free_slot() -> std::size_t
         {
             const auto now = get_time();
-
 
             // look for a free slot
             const auto slot_it =
             std::find_if(slots.cbegin(), slots.cend(), [&](const note_time& n_t)
-                         { return static_cast<std::int32_t>(n_t.start_time + n_t.length - now) < 0; });
+                         { return static_cast<std::int32_t>(n_t.start_time + n_t.length - now) <= 0; });
 
             if (slot_it != slots.cend())
             {
@@ -36,22 +35,49 @@ namespace proc
             return static_cast<std::size_t>(-1);
         }
 
-        auto insert_note(const std::uint8_t note, const std::uint8_t velocity, const std::uint32_t duration, const bool force = false)
-        -> bool
+        auto insert_note(const std::uint8_t note, const std::uint8_t velocity, const std::uint32_t duration, const bool force = false) -> int
         {
-            const auto index = compute_index_for(note);
-            const auto success = index != static_cast<std::size_t>(-1);
-            if (!success)
+            const auto add_note = [&](const auto& index) -> bool
             {
-                return false;
+                slots[index] = note_time{ .note = note, .velocity = velocity, .start_time = get_time(), .length = duration };
+
+                std::sort(slots.begin(), slots.end(),
+                          [](const note_time& lhs, const note_time& rhs)
+                          {
+                              return (lhs.start_time + lhs.length) * lhs.velocity < (rhs.start_time + rhs.length) * rhs.velocity;
+                          });
+                return index;
+            };
+
+            const auto index = find_free_slot();
+            const auto success = index != static_cast<std::size_t>(-1);
+            if (!success && !force)
+            {
+                return -1;
             }
 
-            slots[index] = note_time{ .note = note, .velocity = velocity, .start_time = get_time(), .length = duration };
+            if (success)
+            {
+                return add_note(index);
+            }
 
-            std::sort(slots.begin(), slots.end(), [](const note_time& lhs, const note_time& rhs)
-                      { return (lhs.start_time + lhs.length) < (rhs.start_time + rhs.length); });
+            if (!force)
+            {
+                return -1;
+            }
 
-            return true;
+            // force
+
+            const auto same_note_it =
+            std::find_if(slots.cbegin(), slots.cend(), [&](const note_time& n_t) { return n_t.note == note; });
+
+            if (same_note_it != slots.cend())
+            {
+                const auto index = std::distance(slots.cbegin(), same_note_it);
+                return add_note(index);
+            }
+
+            return add_note(0);
         }
 
         [[nodiscard]] auto& get_slots() const noexcept

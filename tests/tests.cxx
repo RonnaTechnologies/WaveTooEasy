@@ -19,7 +19,7 @@ namespace
     auto millis() -> std::uint32_t
     {
         using namespace std::chrono;
-        static auto t_start = high_resolution_clock::now();
+        static auto t_start = high_resolution_clock::now(); // - milliseconds{ 1 };
         const auto now = high_resolution_clock::now();
         return duration_cast<milliseconds>(now - t_start).count();
     }
@@ -74,11 +74,11 @@ SCENARIO("Player index selection works as expected")
 
             WHEN("a note is added to a free slot")
             {
-                const auto success = player_manager.insert_note(snare_note, 127, 1000);
+                const auto index = player_manager.insert_note(snare_note, 127, 1000);
 
                 THEN("the note is given a slot")
                 {
-                    REQUIRE(success);
+                    REQUIRE(index == 0);
                 }
             }
         }
@@ -123,7 +123,7 @@ SCENARIO("Can add a new slot, when a slot has been freed")
 
             delay(10);
 
-            REQUIRE(player_manager.insert_note(40, 127, 1000));
+            REQUIRE(player_manager.insert_note(40, 127, 1000) == 0);
         }
     }
 }
@@ -142,7 +142,7 @@ SCENARIO("Cannot add a new slots, when all slots are busy")
                 player_manager.insert_note(36 + i, i + 1, 1000);
             }
 
-            REQUIRE_FALSE(player_manager.insert_note(40, 127, 1000));
+            REQUIRE(player_manager.insert_note(40, 127, 1000) == -1);
         }
     }
 }
@@ -159,8 +159,10 @@ SCENARIO("Can force-add a new slot when all slots are busy")
         {
             for (std::size_t i = 0; i < max_players; ++i)
             {
-                player_manager.insert_note(36 + i, i + 1, 1000);
+                player_manager.insert_note(36 + i, 50 - i, 200 + 10 * i);
+                delay(10);
             }
+
             const auto success = player_manager.insert_note(40, 100, 1000, true);
             REQUIRE(success);
         }
