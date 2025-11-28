@@ -2,8 +2,8 @@
 #include <catch2/catch_all.hpp>
 #include <catch2/catch_test_macros.hpp>
 
-#include "include/FileSystem.hpp"
-#include "include/PlayersManager.hpp"
+#include "../include/FileSystem.hpp"
+#include "../include/PlayersManager.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -106,7 +106,7 @@ SCENARIO("Add many notes to players manager")
     }
 }
 
-SCENARIO("Can add a new slots, when a slot has been freed")
+SCENARIO("Can add a new slot, when a slot has been freed")
 {
     static constexpr auto max_players = 10;
 
@@ -135,7 +135,7 @@ SCENARIO("Cannot add a new slots, when all slots are busy")
     GIVEN("a player manager")
     {
         auto player_manager = proc::PlayerManager<max_players>{ &millis };
-        AND_GIVEN("all slots are made busy")
+        AND_GIVEN("all slots are busy")
         {
             for (std::size_t i = 0; i < max_players; ++i)
             {
@@ -143,6 +143,26 @@ SCENARIO("Cannot add a new slots, when all slots are busy")
             }
 
             REQUIRE_FALSE(player_manager.insert_note(40, 127, 1000));
+        }
+    }
+}
+
+SCENARIO("Can force-add a new slot when all slots are busy")
+{
+    static constexpr auto max_players = 10;
+
+    GIVEN("a player manager")
+    {
+        auto player_manager = proc::PlayerManager<max_players>{ &millis };
+
+        AND_GIVEN("all slots are  busy")
+        {
+            for (std::size_t i = 0; i < max_players; ++i)
+            {
+                player_manager.insert_note(36 + i, i + 1, 1000);
+            }
+            const auto success = player_manager.insert_note(40, 100, 1000, true);
+            REQUIRE(success);
         }
     }
 }

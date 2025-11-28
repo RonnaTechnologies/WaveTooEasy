@@ -74,5 +74,16 @@
     },
     "[hpp]": {
       "editor.defaultFormatter": "llvm-vs-code-extensions.vscode-clangd"
-    }
+    },  
+  "testMate.cpp.test.executables": "build/sound_module_tests",
+  "testMate.cpp.log.logpanel": true,
+  "testMate.cpp.debug.configTemplate": {
+    "type": "cppdbg",
+    "MIMode": "gdb",
+    "program": "${exec}",
+    "args": "${argsArray}",
+    "cwd": "${cwd}",
+    "env": "${envObj}",
+    "externalConsole": false
+  }
 }

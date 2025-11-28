@@ -36,10 +36,12 @@ namespace proc
             return static_cast<std::size_t>(-1);
         }
 
-        auto insert_note(const std::uint8_t note, const std::uint8_t velocity, const std::uint32_t duration) -> bool
+        auto insert_note(const std::uint8_t note, const std::uint8_t velocity, const std::uint32_t duration, const bool force = false)
+        -> bool
         {
             const auto index = compute_index_for(note);
-            if (index == static_cast<std::size_t>(-1))
+            const auto success = index != static_cast<std::size_t>(-1);
+            if (!success)
             {
                 return false;
             }
