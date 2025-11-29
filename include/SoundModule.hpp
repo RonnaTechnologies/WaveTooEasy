@@ -8,6 +8,7 @@
 #undef max
 
 #include "Player.h"
+#include "PlayersManager.hpp"
 #include "SerialMIDI.hpp"
 
 
@@ -51,7 +52,8 @@ namespace sound
             const auto note = serial_midi.get_note();
             const auto velocity = serial_midi.get_velocity();
 
-            auto* player = players.get(player_id);
+            const auto player_id = player_manager.insert_note(note, velocity, true);
+            Player* player = players.get(player_id);
 
 
             const auto volume = std::clamp(static_cast<float>(velocity) / max_velocity_float, 0.0F, 1.0F);
@@ -70,7 +72,7 @@ namespace sound
             player->stop();
             player->play(file_name.c_str(), PlayModeNormal, note);
 
-            player_id = (player_id + 1) % PlayersPool::getMaxPlayers();
+            player_manager.set_duration(player_id, player->get_duration());
 
             // serial_midi.println(String{ static_cast<int>(player->get_sound_id()) });
         }
@@ -92,7 +94,8 @@ namespace sound
 
         PlayersPool players = PlayersPool::getInstance();
         midi::serial serial_midi;
-        std::size_t player_id = 0;
+        // std::size_t player_id = 0;
+        proc::PlayerManager<PlayersPool::getMaxPlayers()> player_manager{ &millis };
     };
 
 } // namespace sound
