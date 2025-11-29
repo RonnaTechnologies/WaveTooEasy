@@ -37,7 +37,7 @@ namespace proc
 
         auto insert_note(const std::uint8_t note, const std::uint8_t velocity, const bool force = false) -> int
         {
-            const auto add_note = [&](const auto& index) -> bool
+            const auto add_note = [&](const auto& index) -> std::size_t
             {
                 slots[index] = note_time{ .note = note, .velocity = velocity, .start_time = get_time() };
                 return index;
@@ -67,8 +67,8 @@ namespace proc
 
             if (same_note_it != slots.cend())
             {
-                const auto index = std::distance(slots.cbegin(), same_note_it);
-                return add_note(index);
+                const auto slot_index = std::distance(slots.cbegin(), same_note_it);
+                return add_note(slot_index);
             }
 
             return add_note(0);
