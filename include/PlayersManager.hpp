@@ -25,7 +25,7 @@ namespace proc
             // look for a free slot
             const auto slot_it =
             std::find_if(slots.cbegin(), slots.cend(), [&](const note_time& n_t)
-                         { return static_cast<std::int32_t>(n_t.start_time + n_t.length - now) <= 0; });
+                         { return static_cast<std::int32_t>(n_t.start_time + n_t.duration - now) <= 0; });
 
             if (slot_it != slots.cend())
             {
@@ -35,17 +35,11 @@ namespace proc
             return static_cast<std::size_t>(-1);
         }
 
-        auto insert_note(const std::uint8_t note, const std::uint8_t velocity, const std::uint32_t duration, const bool force = false) -> int
+        auto insert_note(const std::uint8_t note, const std::uint8_t velocity, const bool force = false) -> int
         {
             const auto add_note = [&](const auto& index) -> bool
             {
-                slots[index] = note_time{ .note = note, .velocity = velocity, .start_time = get_time(), .length = duration };
-
-                std::sort(slots.begin(), slots.end(),
-                          [](const note_time& lhs, const note_time& rhs)
-                          {
-                              return (lhs.start_time + lhs.length) * lhs.velocity < (rhs.start_time + rhs.length) * rhs.velocity;
-                          });
+                slots[index] = note_time{ .note = note, .velocity = velocity, .start_time = get_time() };
                 return index;
             };
 
@@ -80,6 +74,17 @@ namespace proc
             return add_note(0);
         }
 
+        void set_duration(const std::size_t& index, const std::uint32_t duration) noexcept
+        {
+            slots[index].duration = duration;
+
+            std::sort(slots.begin(), slots.end(),
+                      [](const note_time& lhs, const note_time& rhs)
+                      {
+                          return (lhs.start_time + lhs.duration) * lhs.velocity < (rhs.start_time + rhs.duration) * rhs.velocity;
+                      });
+        }
+
         [[nodiscard]] auto& get_slots() const noexcept
         {
             return slots;
@@ -91,7 +96,7 @@ namespace proc
             std::uint8_t note{};
             std::uint8_t velocity{};
             std::uint32_t start_time{};
-            std::uint32_t length{};
+            std::uint32_t duration{};
         };
         std::array<note_time, N> slots{};
         time_getter_t get_time;
