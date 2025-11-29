@@ -101,7 +101,11 @@ SCENARIO("Add many notes to players manager")
 
             const auto& slots = player_manager.get_slots();
             const auto nb_busy_slots = std::ranges::count_if(slots, [](const auto& slot) { return slot.duration > 0; });
-            REQUIRE(nb_busy_slots == 2);
+
+            THEN("there are two busy slots")
+            {
+                REQUIRE(nb_busy_slots == 2);
+            }
         }
     }
 }
@@ -113,7 +117,7 @@ SCENARIO("Can add a new slot, when a slot has been freed")
     GIVEN("a player manager")
     {
         auto player_manager = proc::PlayerManager<max_players>{ &millis };
-        AND_GIVEN("all slots are made busy")
+        WHEN("all slots are busy")
         {
             for (std::size_t i = 0; i < max_players; ++i)
             {
@@ -121,9 +125,14 @@ SCENARIO("Can add a new slot, when a slot has been freed")
                 delay(10);
             }
 
-            delay(10);
-
-            REQUIRE(player_manager.insert_note(40, 127) == 0);
+            AND_WHEN("enough time is spent to free a slot")
+            {
+                delay(10);
+                THEN("a new slot can be inserted")
+                {
+                    REQUIRE(player_manager.insert_note(40, 127) == 0);
+                }
+            }
         }
     }
 }
@@ -135,14 +144,17 @@ SCENARIO("Cannot add a new slots, when all slots are busy")
     GIVEN("a player manager")
     {
         auto player_manager = proc::PlayerManager<max_players>{ &millis };
-        AND_GIVEN("all slots are busy")
+        WHEN("all slots are busy")
         {
             for (std::size_t i = 0; i < max_players; ++i)
             {
                 player_manager.set_duration(player_manager.insert_note(36 + i, i + 1), 1000);
             }
 
-            REQUIRE(player_manager.insert_note(40, 127) == -1);
+            THEN("a new slot cannot be added")
+            {
+                REQUIRE(player_manager.insert_note(40, 127) == -1);
+            }
         }
     }
 }
@@ -163,12 +175,51 @@ SCENARIO("Can force-add a new slot when all slots are busy")
                 delay(10);
             }
 
-            const auto index = player_manager.insert_note(40, 100, true);
-            REQUIRE(index >= 0);
+            WHEN("a new slot is added forcefully")
+            {
+
+                const auto index = player_manager.insert_note(40, 100, true);
+
+                THEN("the slot is attributed")
+                {
+                    REQUIRE(index >= 0);
+                }
+            }
         }
     }
 }
 
+
+SCENARIO("Add to correct slot when all slots are busy")
+{
+    static constexpr auto max_players = 10;
+    static constexpr auto target_note = std::uint8_t{ 40 };
+    GIVEN("a player manager")
+    {
+        auto player_manager = proc::PlayerManager<max_players>{ &millis };
+        AND_GIVEN("all slots are  busy")
+        {
+            for (std::size_t i = 0; i < max_players; ++i)
+            {
+                player_manager.set_duration(player_manager.insert_note(36 + i, 50 - i), 2000 + 20 * i);
+                delay(10);
+            }
+
+            delay(10);
+
+            const auto& slots = player_manager.get_slots();
+            const auto* const target_note_it =
+            std::ranges::find_if(slots, [&](const auto& slot) { return slot.note == target_note; });
+
+            REQUIRE(target_note_it != slots.cend());
+
+            const auto target_note_index = std::distance(slots.cbegin(), target_note_it);
+
+            const auto index = player_manager.insert_note(target_note, 127, true);
+            REQUIRE(target_note_index == index);
+        }
+    }
+}
 
 // SCENARIO("Sound files are parsed successfully")
 // {
