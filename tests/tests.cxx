@@ -9,6 +9,7 @@
 #include <charconv>
 #include <chrono>
 #include <cstdint>
+#include <iterator>
 #include <string_view>
 #include <thread>
 #include <unordered_map>
@@ -236,6 +237,46 @@ SCENARIO("Add to correct slot when all slots are busy")
                 THEN("the slot is inserted at the correct index")
                 {
                     REQUIRE(target_note_index == index);
+                }
+            }
+        }
+    }
+}
+
+SCENARIO("Velocity-based priority when too many slots are busy")
+{
+    static constexpr auto max_players = 10;
+    static constexpr auto note = std::uint8_t{ 36 };
+
+    GIVEN("a player manager")
+    {
+        auto player_manager = proc::PlayerManager<max_players>{ &millis };
+
+        AND_GIVEN("all slots are busy with the same note")
+        {
+            for (std::size_t i = 0; i < max_players; ++i)
+            {
+                player_manager.set_duration(player_manager.insert_note(note, 127 - i * 10), 2000);
+                delay(_10ms);
+            }
+
+            delay(_10ms);
+
+            WHEN("one more slot is added")
+            {
+
+                const auto& slots = player_manager.get_slots();
+
+                const auto* const min_velocity_slot_it = std::ranges::min_element(slots, [&](const auto& lhs, const auto& rhs)
+                                                                                  { return lhs.velocity < rhs.velocity; });
+
+                const auto expected_index = std::distance(slots.cbegin(), min_velocity_slot_it);
+
+                const auto index = player_manager.insert_note(note, 127, true);
+
+                THEN("the slot is inserted at the correct position, according to its associated velocity")
+                {
+                    REQUIRE(expected_index == index);
                 }
             }
         }
