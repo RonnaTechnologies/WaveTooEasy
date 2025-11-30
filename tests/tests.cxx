@@ -119,6 +119,7 @@ SCENARIO("Add many notes to players manager")
 SCENARIO("Can add a new slot, when a slot has been freed")
 {
     static constexpr auto max_players = 10;
+    static constexpr auto start_note = std::uint8_t{ 36 };
     static constexpr auto velocity = 127;
 
     GIVEN("a player manager")
@@ -128,7 +129,7 @@ SCENARIO("Can add a new slot, when a slot has been freed")
         {
             for (std::size_t i = 0; i < max_players; ++i)
             {
-                player_manager.insert_note(36 + i, i + 1);
+                player_manager.insert_note(start_note + i, i + 1);
                 delay(_10ms);
             }
 
@@ -219,16 +220,24 @@ SCENARIO("Add to correct slot when all slots are busy")
 
             delay(_10ms);
 
-            const auto& slots = player_manager.get_slots();
-            const auto* const target_note_it =
-            std::ranges::find_if(slots, [&](const auto& slot) { return slot.note == target_note; });
+            WHEN("a slot is inserted forcefully")
+            {
 
-            REQUIRE(target_note_it != slots.cend());
+                const auto& slots = player_manager.get_slots();
+                const auto* const target_note_it =
+                std::ranges::find_if(slots, [&](const auto& slot) { return slot.note == target_note; });
 
-            const auto target_note_index = std::distance(slots.cbegin(), target_note_it);
+                REQUIRE(target_note_it != slots.cend());
 
-            const auto index = player_manager.insert_note(target_note, 127, true);
-            REQUIRE(target_note_index == index);
+                const auto target_note_index = std::distance(slots.cbegin(), target_note_it);
+
+                const auto index = player_manager.insert_note(target_note, 127, true);
+
+                THEN("the slot is inserted at the correct index")
+                {
+                    REQUIRE(target_note_index == index);
+                }
+            }
         }
     }
 }
