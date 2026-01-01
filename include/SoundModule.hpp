@@ -58,7 +58,7 @@ namespace sound
 
             const auto volume = std::clamp(static_cast<float>(velocity) / max_velocity_float, 0.0F, 1.0F);
 
-            player->setVolume(volume);
+            player->setVolume(volume * master_volume);
 
             std::array<char, 4U> note_str_buffer{};
             std::to_chars(note_str_buffer.begin(), note_str_buffer.end(), int{ note });
@@ -74,7 +74,12 @@ namespace sound
 
             player_manager.set_duration(player_id, player->get_duration());
 
-            // serial_midi.println(String{ static_cast<int>(player->get_sound_id()) });
+            serial_midi.println(String{ player_id });
+        }
+
+        void set_volume(float volume) noexcept
+        {
+            master_volume = volume;
         }
 
         void serial_poll()
@@ -94,8 +99,8 @@ namespace sound
 
         PlayersPool players = PlayersPool::getInstance();
         midi::serial serial_midi;
-        // std::size_t player_id = 0;
         proc::PlayerManager<PlayersPool::getMaxPlayers()> player_manager{ &millis };
+        float master_volume = 1.F;
     };
 
 } // namespace sound

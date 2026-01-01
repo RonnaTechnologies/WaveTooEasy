@@ -26,6 +26,12 @@
 #include "include/FileSystem.hpp"
 #include "include/Led.h"
 #include "include/SoundModule.hpp"
+#include "variant.h"
+#include "wiring.h"
+#include "wiring_analog.h"
+#include "wiring_constants.h"
+#include "wiring_digital.h"
+#include <cstdlib>
 
 
 #undef min
@@ -47,6 +53,7 @@ namespace
     // LEDs
     BoardLed led1(LED1);
     BoardLed led2(LED2);
+    // BoardLed led3(A11);
 
     sound::Module module;
 
@@ -73,6 +80,9 @@ namespace
             led1.blink(t_1000ms, t_500ms);
         }
     }
+
+    int prev_value = 1;
+
 } // namespace
 
 
@@ -81,6 +91,8 @@ void setup()
     // Configure LEDs
     led1.initialize();
     led2.initialize();
+
+    // led3.initialize();
 
     module.init();
 
@@ -108,11 +120,31 @@ void setup()
     {
         module.print(file.c_str());
     }
+
+    pinMode(A10, INPUT_ANALOG);
+    pinMode(CHANNEL3, INPUT);
+    pinMode(CHANNEL4, INPUT);
+    prev_value = 1;
 }
 
 
 void loop()
 {
+    const auto start = micros();
+    const auto value = static_cast<int>(analogRead(A10));
+    // digitalRead(CHANNEL3);
+    // digitalRead(CHANNEL4);
+    if (value != 0 && abs(prev_value - value) > 32)
+    {
+        const auto volume = static_cast<float>(value) / 4096.F;
+        module.set_volume(volume);
+        module.print(static_cast<int>(100.F * volume));
+        prev_value = value;
+    }
+
+    // const auto value = digitalRead(CHANNEL3);
+    // module.print(value);
+    // delay(10);
     pollAudioActivityLED();
     module.poll();
 }
