@@ -66,8 +66,8 @@ namespace sound
             const auto note_str = std::string_view{ note_str_buffer.data() };
 
             std::string file_name;
-            file_name.reserve(note_str.size() + wav_extension.size());
-            file_name.append(note_str).append(wav_extension);
+            file_name.reserve(kit_folder.size() + 1 + note_str.size() + wav_extension.size());
+            file_name.append("/").append(kit_folder).append("/").append(note_str).append(wav_extension);
 
             player->stop();
             player->play(file_name.c_str(), PlayModeNormal, note);
@@ -80,6 +80,11 @@ namespace sound
         void set_volume(float volume) noexcept
         {
             master_volume = volume;
+        }
+
+        void set_kit(const std::string& name)
+        {
+            kit_folder = name;
         }
 
         void serial_poll()
@@ -101,6 +106,7 @@ namespace sound
         midi::serial serial_midi;
         proc::PlayerManager<PlayersPool::getMaxPlayers()> player_manager{ &millis };
         float master_volume = 1.F;
+        std::string kit_folder;
     };
 
 } // namespace sound

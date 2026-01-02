@@ -113,18 +113,20 @@ void setup()
     }
 
 
-    fs::FileSystem sd_dir{ "/" };
-    const auto files = sd_dir.list_files();
+    // fs::FileSystem sd_dir{ "/" };
+    // const auto files = sd_dir.list_files();
 
-    for (const auto& file : files)
-    {
-        module.print(file.c_str());
-    }
+    // for (const auto& file : files)
+    // {
+    //     module.print(file.c_str());
+    // }
 
     pinMode(A10, INPUT_ANALOG);
     pinMode(CHANNEL3, INPUT);
     pinMode(CHANNEL4, INPUT);
     prev_value = 1;
+
+    module.set_kit("2");
 }
 
 
