@@ -21,8 +21,10 @@
  * GNU General Public License for more details.
  ***************************************************************************/
 
+#include "WString.h"
 #include "ff.h"
 
+#include "include/Button.hpp"
 #include "include/FileSystem.hpp"
 #include "include/Led.h"
 #include "include/SoundModule.hpp"
@@ -55,8 +57,10 @@ namespace
     BoardLed led2(LED2);
     // BoardLed led3(A11);
 
-    sound::Module module;
+    IO::Button left_button{ CHANNEL3 };
+    IO::Button right_button{ CHANNEL3 };
 
+    sound::Module module;
 
     void pollAudioActivityLED()
     {
@@ -82,6 +86,7 @@ namespace
     }
 
     int prev_value = 1;
+    std::string current_kit = "1";
 
 } // namespace
 
@@ -126,21 +131,31 @@ void setup()
     pinMode(CHANNEL4, INPUT);
     prev_value = 1;
 
-    module.set_kit("2");
+    module.set_kit(current_kit);
 }
 
 
 void loop()
 {
-    const auto start = micros();
+    const auto now = micros();
     const auto value = static_cast<int>(analogRead(A10));
     // digitalRead(CHANNEL3);
     // digitalRead(CHANNEL4);
+
+    left_button.poll(now);
+
+    if (left_button.pressed())
+    {
+        current_kit = current_kit == "1" ? "2" : "1";
+        module.set_kit(current_kit);
+        module.print(String{ "changed state" });
+    }
+
     if (value != 0 && abs(prev_value - value) > 32)
     {
         const auto volume = static_cast<float>(value) / 4096.F;
         module.set_volume(volume);
-        module.print(static_cast<int>(100.F * volume));
+        // module.print(static_cast<int>(100.F * volume));
         prev_value = value;
     }
 
