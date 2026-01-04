@@ -1,5 +1,6 @@
 
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_message.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include "../include/FileSystem.hpp"
@@ -10,9 +11,24 @@
 #include <chrono>
 #include <cstdint>
 #include <iterator>
+#include <string>
 #include <string_view>
 #include <thread>
 #include <unordered_map>
+
+
+static constexpr auto max_players = 10;
+namespace Catch
+{
+    template <>
+    struct StringMaker<proc::PlayerManager<max_players>::note_time>
+    {
+        static std::string convert(const proc::PlayerManager<max_players>::note_time& obj)
+        {
+            return "{note: " + std::to_string(obj.note) + ", velocity: " + std::to_string(obj.velocity) + "}";
+        }
+    };
+} // namespace Catch
 
 namespace
 {
@@ -245,8 +261,8 @@ SCENARIO("Add to correct slot when all slots are busy")
 
 SCENARIO("Velocity-based priority when too many slots are busy")
 {
-    static constexpr auto max_players = 10;
     static constexpr auto note = std::uint8_t{ 36 };
+    static constexpr auto max_velocity = std::uint8_t{ 127 };
 
     GIVEN("a player manager")
     {
@@ -256,21 +272,22 @@ SCENARIO("Velocity-based priority when too many slots are busy")
         {
             for (std::size_t i = 0; i < max_players; ++i)
             {
-                player_manager.set_duration(player_manager.insert_note(note, 127 - i * 10), 2000);
+                player_manager.set_duration(player_manager.insert_note(note, max_velocity - i * 10), _10ms * 13);
                 delay(_10ms);
             }
-
-            delay(_10ms);
 
             WHEN("one more slot is added")
             {
 
                 const auto& slots = player_manager.get_slots();
+                CAPTURE(slots);
 
                 const auto* const min_velocity_slot_it = std::ranges::min_element(slots, [&](const auto& lhs, const auto& rhs)
                                                                                   { return lhs.velocity < rhs.velocity; });
 
-                const auto expected_index = std::distance(slots.cbegin(), min_velocity_slot_it);
+                const auto expected_index = min_velocity_slot_it->start_time + min_velocity_slot_it->duration < millis() ?
+                0 :
+                std::distance(slots.cbegin(), min_velocity_slot_it);
 
                 const auto index = player_manager.insert_note(note, 127, true);
 

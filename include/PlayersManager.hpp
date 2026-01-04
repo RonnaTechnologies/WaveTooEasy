@@ -18,9 +18,8 @@ namespace proc
         {
         }
 
-        auto find_free_slot() -> std::size_t
+        auto find_free_slot(std::uint32_t now) -> std::size_t
         {
-            const auto now = get_time();
 
             // look for a free slot
             const auto slot_it =
@@ -43,8 +42,11 @@ namespace proc
                 return index;
             };
 
-            const auto index = find_free_slot();
+            const auto now = get_time();
+            const auto index = find_free_slot(now);
             const auto success = index != static_cast<std::size_t>(-1);
+
+
             if (!success && !force)
             {
                 return -1;
@@ -62,13 +64,33 @@ namespace proc
 
             // force
 
-            const auto same_note_it =
-            std::find_if(slots.cbegin(), slots.cend(), [&](const note_time& n_t) { return n_t.note == note; });
+            const auto nb_same_notes =
+            std::count_if(slots.cbegin(), slots.cend(), [&](const note_time& n_t) { return n_t.note == note; });
 
-            if (same_note_it != slots.cend())
+            const auto get_impulse = [](const note_time& n_t, const std::uint32_t& now) -> float
             {
-                const auto slot_index = std::distance(slots.cbegin(), same_note_it);
-                return add_note(slot_index);
+                const auto start_impulse = std::uint32_t{ n_t.velocity } * std::uint32_t{ n_t.duration };
+                return static_cast<float>(start_impulse) - ((now - n_t.start_time) * static_cast<float>(n_t.velocity));
+            };
+
+            if (nb_same_notes == 1)
+            {
+                const auto same_note_it =
+                std::find_if(slots.cbegin(), slots.cend(), [&](const note_time& n_t) { return n_t.note == note; });
+                const auto& same_note = *same_note_it;
+
+                const auto sn_impulse = get_impulse(same_note, now);
+
+                const auto note_impulse = static_cast<float>(std::uint32_t{ velocity } * std::uint32_t{ same_note.duration });
+
+                if (note_impulse > sn_impulse)
+                {
+                    return add_note(std::distance(slots.cbegin(), same_note_it));
+                }
+            }
+
+            if (nb_same_notes >= 2)
+            {
             }
 
             return add_note(0);
@@ -78,11 +100,8 @@ namespace proc
         {
             slots[index].duration = duration;
 
-            std::sort(slots.begin(), slots.end(),
-                      [](const note_time& lhs, const note_time& rhs)
-                      {
-                          return (lhs.start_time + lhs.duration) * lhs.velocity < (rhs.start_time + rhs.duration) * rhs.velocity;
-                      });
+            std::sort(slots.begin(), slots.end(), [](const note_time& lhs, const note_time& rhs)
+                      { return ((lhs.start_time + lhs.duration)) > ((rhs.start_time + rhs.duration)); });
         }
 
         [[nodiscard]] auto& get_slots() const noexcept
@@ -90,7 +109,6 @@ namespace proc
             return slots;
         }
 
-    private:
         struct note_time
         {
             std::uint8_t note{};
@@ -98,6 +116,8 @@ namespace proc
             std::uint32_t start_time{};
             std::uint32_t duration{};
         };
+
+    private:
         std::array<note_time, N> slots{};
         time_getter_t get_time;
     };
