@@ -38,7 +38,17 @@ namespace midi
             return 0x90 == (data_buffer.front() & 0xF0);
         }
 
+        [[nodiscard]] auto is_control_change() const noexcept -> bool
+        {
+            return 0xB0 == (data_buffer.front() & 0xF0);
+        }
+
         [[nodiscard]] auto get_note() const noexcept -> std::uint8_t
+        {
+            return data_buffer[1];
+        }
+
+        [[nodiscard]] auto get_cc_number() const noexcept -> std::uint8_t
         {
             return data_buffer[1];
         }
@@ -47,6 +57,12 @@ namespace midi
         {
             return data_buffer.back();
         }
+
+        [[nodiscard]] auto get_cc_value() const noexcept -> std::uint8_t
+        {
+            return data_buffer.back();
+        }
+
         void println(const String& str)
         {
             uart->println(str);
