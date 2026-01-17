@@ -7,6 +7,7 @@
 #undef min
 #undef max
 
+#include "HiHatManager.hpp"
 #include "Player.h"
 #include "PlayersManager.hpp"
 #include "SerialMIDI.hpp"
@@ -53,7 +54,7 @@ namespace sound
             {
 
                 const auto now = millis();
-                const auto note = serial_midi.get_note();
+                const auto note = serial_midi.get_note() == 26 ? hi_hat_manager.get_hihat_note() : serial_midi.get_note();
                 const auto velocity = serial_midi.get_velocity();
 
                 const auto player_id = player_manager.insert_note(note, velocity, true);
@@ -111,6 +112,7 @@ namespace sound
         PlayersPool players = PlayersPool::getInstance();
         midi::serial serial_midi;
         proc::PlayerManager<PlayersPool::getMaxPlayers()> player_manager{ &millis };
+        proc::HiHatManager hi_hat_manager;
         float master_volume = 1.F;
         std::string kit_folder;
     };
