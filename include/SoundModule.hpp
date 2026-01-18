@@ -1,8 +1,9 @@
 #pragma once
 
 
-#include "variant.h"
+#include "WString.h"
 #include "wiring.h"
+#include <cstdint>
 
 #undef min
 #undef max
@@ -16,6 +17,7 @@
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <cmath>
 #include <string>
 #include <string_view>
 
@@ -46,7 +48,19 @@ namespace sound
 
             if (serial_midi.is_control_change())
             {
+                if (const auto cc_value = static_cast<std::uint32_t>(serial_midi.get_cc_value()); cc_value > 0)
+                {
+                    hi_hat_manager.update_pedal_position(cc_value);
+                    // std::array<char, 8U> cc_str{};
+                    // const auto result = std::to_chars(cc_str.begin(), cc_str.end(), cc_value);
 
+                    // if (result.ec != std::errc{})
+                    // {
+                    //     return;
+                    // }
+                    // const auto ccstr = std::string{ cc_str.data(), result.ptr };
+                    // serial_midi.println(String{ ccstr.c_str() });
+                }
                 return;
             }
 
@@ -56,6 +70,21 @@ namespace sound
                 const auto now = millis();
                 const auto note = serial_midi.get_note() == 26 ? hi_hat_manager.get_hihat_note() : serial_midi.get_note();
                 const auto velocity = serial_midi.get_velocity();
+
+                const auto velocity_layer =
+                static_cast<std::uint32_t>(std::ceil(static_cast<float>(velocity) / velocity_layer_range));
+
+                // {
+                //     std::array<char, 8U> cc_str{};
+                //     const auto result = std::to_chars(cc_str.begin(), cc_str.end(), velocity_layer);
+
+                //     if (result.ec != std::errc{})
+                //     {
+                //         return;
+                //     }
+                //     const auto ccstr = std::string{ cc_str.data(), result.ptr };
+                //     serial_midi.println(String{ ccstr.c_str() });
+                // }
 
                 const auto player_id = player_manager.insert_note(note, velocity, true);
                 Player* player = players.get(player_id);
@@ -70,16 +99,22 @@ namespace sound
 
                 const auto note_str = std::string_view{ note_str_buffer.data() };
 
+                std::array<char, 4U> vel_layer_str_buf{};
+                std::to_chars(vel_layer_str_buf.begin(), vel_layer_str_buf.end(), velocity_layer);
+
+                const auto vel_layer_str = std::string_view{ vel_layer_str_buf.data() };
+
                 std::string file_name;
-                file_name.reserve(kit_folder.size() + 1 + note_str.size() + wav_extension.size());
-                file_name.append("/").append(kit_folder).append("/").append(note_str).append(wav_extension);
+                file_name.reserve(kit_folder.size() + 1 + note_str.size() + 1 + vel_layer_str.size() + wav_extension.size());
+                file_name.append("/").append(kit_folder).append("/").append(note_str).append("-").append(vel_layer_str).append(wav_extension);
+
+                // serial_midi.println(String{ file_name.c_str() });
 
                 player->stop();
                 player->play(file_name.c_str(), PlayModeNormal, note);
 
                 player_manager.set_duration(player_id, player->get_duration());
 
-                serial_midi.println(String{ player_id });
                 return;
             }
         }
@@ -92,6 +127,11 @@ namespace sound
         void set_kit(const std::string& name)
         {
             kit_folder = name;
+        }
+
+        void set_nb_velocity_layers(std::uint32_t nb_velocity_layers)
+        {
+            velocity_layer_range = 127.F / static_cast<float>(nb_velocity_layers);
         }
 
         void serial_poll()
@@ -114,6 +154,7 @@ namespace sound
         proc::PlayerManager<PlayersPool::getMaxPlayers()> player_manager{ &millis };
         proc::HiHatManager hi_hat_manager;
         float master_volume = 1.F;
+        float velocity_layer_range = 127.F / 1.F;
         std::string kit_folder;
     };
 
