@@ -35,12 +35,12 @@ namespace midi
 
         [[nodiscard]] auto is_note_on() const noexcept -> bool
         {
-            return 0x90 == (data_buffer.front() & 0xF0);
+            return note_on == (data_buffer.front() & upper_nibble_mask);
         }
 
         [[nodiscard]] auto is_control_change() const noexcept -> bool
         {
-            return 0xB0 == (data_buffer.front() & 0xF0);
+            return control_change == (data_buffer.front() & upper_nibble_mask);
         }
 
         [[nodiscard]] auto get_note() const noexcept -> std::uint8_t
@@ -69,6 +69,10 @@ namespace midi
         }
 
     private:
+        static constexpr auto upper_nibble_mask = static_cast<std::uint8_t>(0xF0);
+        static constexpr auto note_on = static_cast<std::uint8_t>(0x90);
+        static constexpr auto control_change = static_cast<std::uint8_t>(0xB0);
+
         UARTClass* uart = &Serial;
         std::array<std::uint8_t, 3U> data_buffer = { 0, 0, 0 };
     };

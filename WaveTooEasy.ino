@@ -21,11 +21,11 @@
  * GNU General Public License for more details.
  ***************************************************************************/
 
+#include <cstdint>
+
 #include "WString.h"
-#include "ff.h"
 
 #include "include/Button.hpp"
-#include "include/FileSystem.hpp"
 #include "include/Led.h"
 #include "include/SoundModule.hpp"
 #include "variant.h"
@@ -33,7 +33,6 @@
 #include "wiring_analog.h"
 #include "wiring_constants.h"
 #include "wiring_digital.h"
-#include <cstdlib>
 
 
 #undef min
@@ -48,6 +47,8 @@ namespace
     constexpr auto t_500ms = 500;
     constexpr auto t_1000ms = 1'000;
 
+    constexpr auto volume_change_threshold = 32;
+
     // Configuration
     const std::uint32_t sample_rate = 44'100;
     const bool disable_leds = false;
@@ -57,8 +58,9 @@ namespace
     BoardLed led2(LED2);
     // BoardLed led3(A11);
 
-    IO::Button left_button{ CHANNEL3 };
-    IO::Button right_button{ CHANNEL3 };
+
+    IO::Button top_button{ CHANNEL4 };
+    IO::Button bottom_button{ CHANNEL3 };
 
     sound::Module module;
 
@@ -97,8 +99,6 @@ void setup()
     led1.initialize();
     led2.initialize();
 
-    // led3.initialize();
-
     module.init();
 
     if (!disable_leds)
@@ -132,6 +132,8 @@ void setup()
     prev_value = 1;
 
     module.set_kit(current_kit);
+    module.set_nb_velocity_layers(5U);
+    module.set_volume(1.);
 }
 
 
@@ -139,29 +141,23 @@ void loop()
 {
     const auto now = micros();
     const auto value = static_cast<int>(analogRead(A10));
-    // digitalRead(CHANNEL3);
-    // digitalRead(CHANNEL4);
 
-    left_button.poll(now);
+    top_button.poll(now);
 
-    if (left_button.pressed())
+    if (top_button.pressed())
     {
         current_kit = current_kit == "1" ? "2" : "1";
         module.set_kit(current_kit);
         module.print(String{ "changed state" });
     }
 
-    if (value != 0 && abs(prev_value - value) > 32)
+    if (value != 0 && abs(prev_value - value) > volume_change_threshold)
     {
         const auto volume = static_cast<float>(value) / 4096.F;
-        module.set_volume(volume);
-        // module.print(static_cast<int>(100.F * volume));
+        // module.set_volume(volume);
         prev_value = value;
     }
 
-    // const auto value = digitalRead(CHANNEL3);
-    // module.print(value);
-    // delay(10);
     pollAudioActivityLED();
     module.poll();
 }

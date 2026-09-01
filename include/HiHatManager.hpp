@@ -15,7 +15,7 @@ namespace proc
 
         [[nodiscard]] auto should_choke_hihat() const noexcept -> bool
         {
-            return previous_position > 50 && pedal_position < 30;
+            return previous_position > pedal_middle_threshold && pedal_position < pedal_low_threshold;
         }
 
         [[nodiscard]] auto get_pedal_position() const noexcept
@@ -25,12 +25,12 @@ namespace proc
 
         [[nodiscard]] auto get_hihat_note() const noexcept -> std::uint8_t
         {
-            if (pedal_position < 30)
+            if (pedal_position < pedal_low_threshold)
             {
                 return open_hihat_note;
             }
 
-            if (pedal_position > 90)
+            if (pedal_position > pedal_high_threshold)
             {
                 return closed_hihat_note;
             }
@@ -45,6 +45,10 @@ namespace proc
         static constexpr auto pedal_hihat_note = std::uint8_t{ 44 };
 
         static constexpr auto hihat_cc = std::uint8_t{ 4 };
+
+        static constexpr auto pedal_low_threshold = std::uint8_t{ 30 };
+        static constexpr auto pedal_middle_threshold = std::uint8_t{ 50 };
+        static constexpr auto pedal_high_threshold = std::uint8_t{ 90 };
 
         std::uint8_t pedal_position = 0;
         std::uint8_t previous_position = 0;

@@ -11,6 +11,7 @@
 #include "HiHatManager.hpp"
 #include "Player.h"
 #include "PlayersManager.hpp"
+#include "RawPlayer.h"
 #include "SerialMIDI.hpp"
 
 
@@ -111,7 +112,7 @@ namespace sound
                 // serial_midi.println(String{ file_name.c_str() });
 
                 player->stop();
-                player->play(file_name.c_str(), PlayModeNormal, note);
+                player->play(file_name.c_str(), PlayMode::PlayModeNormal, note);
 
                 player_manager.set_duration(player_id, player->get_duration());
 
@@ -131,7 +132,7 @@ namespace sound
 
         void set_nb_velocity_layers(std::uint32_t nb_velocity_layers)
         {
-            velocity_layer_range = 127.F / static_cast<float>(nb_velocity_layers);
+            velocity_layer_range = max_velocity_float / static_cast<float>(nb_velocity_layers);
         }
 
         void serial_poll()
@@ -146,7 +147,7 @@ namespace sound
         }
 
     private:
-        static constexpr std::string_view wav_extension = std::string_view{ ".wav\0" };
+        static constexpr auto wav_extension = std::string_view{ ".wav\0" };
         static constexpr auto max_velocity_float = 127.F;
 
         PlayersPool players = PlayersPool::getInstance();
@@ -154,7 +155,7 @@ namespace sound
         proc::PlayerManager<PlayersPool::getMaxPlayers()> player_manager{ &millis };
         proc::HiHatManager hi_hat_manager;
         float master_volume = 1.F;
-        float velocity_layer_range = 127.F / 1.F;
+        float velocity_layer_range = max_velocity_float / 1.F;
         std::string kit_folder;
     };
 
