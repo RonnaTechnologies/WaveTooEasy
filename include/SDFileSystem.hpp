@@ -43,6 +43,50 @@ namespace fs
             return list;
         }
 
+        [[nodiscard]] bool file_exists(const std::string& filename) const override
+        {
+            FILINFO info{};
+            return f_stat(filename.c_str(), &info) == FR_OK;
+        }
+
+        [[nodiscard]] bool write_file(const std::string& filename, const std::vector<std::uint8_t>& data) const override
+        {
+            FIL file{};
+            if (f_open(&file, filename.c_str(), FA_WRITE | FA_CREATE_ALWAYS) != FR_OK)
+            {
+                return false;
+            }
+
+            UINT bytes_written = 0;
+            const auto result = f_write(&file, data.data(), static_cast<UINT>(data.size()), &bytes_written);
+            f_close(&file);
+
+            return result == FR_OK && bytes_written == data.size();
+        }
+
+        [[nodiscard]] ReadResult read_file(const std::string& filename) const override
+        {
+            FIL file{};
+            if (f_open(&file, filename.c_str(), FA_READ) != FR_OK)
+            {
+                return {};
+            }
+
+            const auto size = f_size(&file);
+            auto data = std::vector<std::uint8_t>(size);
+
+            UINT bytes_read = 0;
+            const auto result = f_read(&file, data.data(), static_cast<UINT>(size), &bytes_read);
+            f_close(&file);
+
+            if (result != FR_OK || bytes_read != size)
+            {
+                return {};
+            }
+
+            return ReadResult{ .ok = true, .data = std::move(data) };
+        }
+
     private:
         std::string root_dir;
     };
