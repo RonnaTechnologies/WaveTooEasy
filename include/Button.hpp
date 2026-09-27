@@ -23,6 +23,14 @@ namespace IO
 
         void poll(std::uint32_t now)
         {
+            // While inside the debounce window that follows the last confirmed
+            // transition, ignore the pin entirely: any wobble here is treated as
+            // contact bounce, not a real change.
+            if (state != State::unknown && static_cast<std::int32_t>(now - state_change_time - mask_time) < 0)
+            {
+                return;
+            }
+
             const auto current_state = digitalRead(pin_nb) == HIGH ? State::pressed : State::released;
             if (state == State::unknown || current_state != state)
             {
@@ -53,7 +61,7 @@ namespace IO
 
         [[nodiscard]] auto pressed() noexcept -> bool
         {
-            if (state == State::pressed && debounced() && !press_reported)
+            if (state == State::pressed && !press_reported)
             {
                 press_reported = true;
                 return true;
@@ -64,7 +72,7 @@ namespace IO
 
     private:
         std::uint32_t state_change_time{};
-        std::uint32_t mask_time = 200'000;
+        std::uint32_t mask_time = 20'000;
         std::uint8_t pin_nb;
         State state = State::unknown;
         bool press_reported = false;
